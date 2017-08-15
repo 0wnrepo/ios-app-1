@@ -23,6 +23,8 @@ final class ArticlesTableViewController: UITableViewController {
     var mode: Setting.RetrieveMode = Setting.getDefaultMode()
     var handleRefreshEnabled: Bool = true
 
+    var addPasteboardURLItemView = UIView()
+    
     @IBOutlet weak var menu: UIBarButtonItem!
     @IBOutlet weak var add: UIBarButtonItem!
 
@@ -106,12 +108,44 @@ final class ArticlesTableViewController: UITableViewController {
         searchController.dimsBackgroundDuringPresentation = false
         definesPresentationContext = true
         tableView.tableHeaderView = searchController.searchBar
+        registerForNotifications()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         handleRefreshEnabled = true
-
         handleRefresh()
+        addPasteboardURLItemView.isHidden = true
+    }
+    
+    func registerForNotifications() -> Void {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.showAddPasteboardItemView),
+            name: NSNotification.Name(rawValue: "showAddPasteboardItemViewNotification"),
+            object: nil)
+    }
+    
+    func showAddPasteboardItemView() {
+        addPasteboardURLItemView = UIView(frame: CGRect(x: 0, y: 0, width: self.view.frame.width, height: 20))
+        self.view.addSubview(addPasteboardURLItemView)
+        addPasteboardURLItemView.isHidden = false
+        
+        let textView = UITextView(frame: CGRect(x: 0, y: 0, width: self.view.frame.width, height: 20))
+        let url = UIPasteboard.general.urls!.first!
+        textView.text = "Add: \(url) to wallabag?"
+        addPasteboardURLItemView.addSubview(textView)
+        let gesture = UITapGestureRecognizer(target: self, action:#selector(self.addURLToWallabag))
+        textView.addGestureRecognizer(gesture)
+    }
+    
+    func addURLToWallabag () {
+        WallabagApi.addArticle(UIPasteboard.general.urls!.first!, completion: { article in
+            self.sync.insert(article)
+        });
+        addPasteboardURLItemView.isHidden = true
+        for a in addPasteboardURLItemView.subviews {
+            a.removeFromSuperview()
+        }
     }
 
     func managedObjectContextObjectsDidChange(notification: NSNotification) {

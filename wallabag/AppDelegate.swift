@@ -18,6 +18,7 @@ let log = SwiftyBeaver.self
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    let sync = ArticleSync()
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         log.addDestination(ConsoleDestination())
@@ -81,7 +82,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        if #available(iOS 10.0, *) {
+            if UIPasteboard.general.hasURLs {
+                NotificationCenter.default.post(name: NSNotification.Name(rawValue: "showAddPasteboardItemViewNotification"), object: nil)
+            }
+        } else {
+            // Fallback on earlier versions
+        }
     }
+    
+    
 
     func applicationWillTerminate(_ application: UIApplication) {
         updateBadge()
