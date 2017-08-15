@@ -22,9 +22,8 @@ final class ArticlesTableViewController: UITableViewController {
     var entries: [Entry] = []
     var mode: Setting.RetrieveMode = Setting.getDefaultMode()
     var handleRefreshEnabled: Bool = true
-
     var addPasteboardURLItemView = UIView()
-    
+
     @IBOutlet weak var menu: UIBarButtonItem!
     @IBOutlet weak var add: UIBarButtonItem!
 
@@ -97,13 +96,7 @@ final class ArticlesTableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         refreshControl?.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
-        let notificationCenter = NotificationCenter.default
-        notificationCenter.addObserver(self,
-                                       selector: #selector(managedObjectContextObjectsDidChange),
-                                       name: NSNotification.Name.NSManagedObjectContextObjectsDidChange,
-                                       object: CoreData.context
-        )
-
+        
         searchController.searchResultsUpdater = self
         searchController.dimsBackgroundDuringPresentation = false
         definesPresentationContext = true
@@ -112,41 +105,72 @@ final class ArticlesTableViewController: UITableViewController {
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         handleRefreshEnabled = true
         handleRefresh()
-        addPasteboardURLItemView.isHidden = true
+        showAddPasteboardItemView()
     }
-    
-    func registerForNotifications() -> Void {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(self.showAddPasteboardItemView),
-            name: NSNotification.Name(rawValue: "showAddPasteboardItemViewNotification"),
-            object: nil)
+
+    func registerForNotifications() {
+        let notificationCenter = NotificationCenter.default
+        notificationCenter.addObserver(self,
+                                       selector: #selector(managedObjectContextObjectsDidChange),
+                                       name: NSNotification.Name.NSManagedObjectContextObjectsDidChange,
+                                       object: CoreData.context
+        )
+        notificationCenter.addObserver(
+                                        self,
+                                        selector: #selector(self.showAddPasteboardItemView),
+                                        name: NSNotification.Name(rawValue: "showAddPasteboardItemViewNotification"),
+                                        object: nil
+        )
     }
-    
+
     func showAddPasteboardItemView() {
-        addPasteboardURLItemView = UIView(frame: CGRect(x: 0, y: 0, width: self.view.frame.width, height: 20))
-        self.view.addSubview(addPasteboardURLItemView)
-        addPasteboardURLItemView.isHidden = false
-        
-        let textView = UITextView(frame: CGRect(x: 0, y: 0, width: self.view.frame.width, height: 20))
-        let url = UIPasteboard.general.urls!.first!
-        textView.text = "Add: \(url) to wallabag?"
-        addPasteboardURLItemView.addSubview(textView)
-        let gesture = UITapGestureRecognizer(target: self, action:#selector(self.addURLToWallabag))
-        textView.addGestureRecognizer(gesture)
+        self.addArticleFromClipboard(self)
+//        print("height: \(self.tableView.frame.height)")
+//        addPasteboardURLItemView.translatesAutoresizingMaskIntoConstraints = false
+//
+////        let visibleRect : CGRect = self.tableView.bounds.intersection(self.view.bounds)
+//        
+//        
+//        let a = self.tableView.bounds.height - (self.navigationItem.titleView?.frame.height)! - (self.searchController.isActive ? self.searchController.view.frame.height : 0)
+//        
+//        print(a)
+//        
+//        
+//
+//        addPasteboardURLItemView = UIView(frame: CGRect(x: 0, y: a - 40, width: self.view.frame.width, height: 20))
+//
+//        self.view.addSubview(addPasteboardURLItemView)
+//        
+//        addPasteboardURLItemView.isHidden = false
+//        
+//        let toBottom = NSLayoutConstraint(item: addPasteboardURLItemView, attribute: NSLayoutAttribute.bottomMargin, relatedBy: NSLayoutRelation.lessThanOrEqual, toItem: self.view, attribute: NSLayoutAttribute.bottomMargin, multiplier: 1, constant: 0)
+//        let toLeft = NSLayoutConstraint(item: addPasteboardURLItemView, attribute: NSLayoutAttribute.leftMargin, relatedBy: NSLayoutRelation.lessThanOrEqual, toItem: self.view, attribute: NSLayoutAttribute.leftMargin, multiplier: 1, constant: 0)
+//        let toRight =  NSLayoutConstraint(item: addPasteboardURLItemView, attribute: NSLayoutAttribute.rightMargin, relatedBy: NSLayoutRelation.lessThanOrEqual, toItem: self.view, attribute: NSLayoutAttribute.rightMargin, multiplier: 1, constant: 0)
+//        let constantHeight = NSLayoutConstraint(item: addPasteboardURLItemView, attribute: NSLayoutAttribute.height, relatedBy: NSLayoutRelation.equal, toItem: nil, attribute: NSLayoutAttribute.notAnAttribute, multiplier: 1, constant: 20)
+//        NSLayoutConstraint.activate([toBottom, toLeft, toRight, constantHeight])
+//        
+//
+//        let textView = UITextView(frame: CGRect(x: 0, y: 0, width: self.view.frame.width, height: 20))
+//        let url = UIPasteboard.general.urls!.first!
+//        textView.text = "Add: \(url) to wallabag?"
+//        textView.backgroundColor = UIColor.green
+//        addPasteboardURLItemView.addSubview(textView)
+//        let gesture = UITapGestureRecognizer(target: self, action:#selector(self.addURLToWallabag))
+//        textView.addGestureRecognizer(gesture)
     }
-    
-    func addURLToWallabag () {
-        WallabagApi.addArticle(UIPasteboard.general.urls!.first!, completion: { article in
-            self.sync.insert(article)
-        });
-        addPasteboardURLItemView.isHidden = true
-        for a in addPasteboardURLItemView.subviews {
-            a.removeFromSuperview()
-        }
-    }
+
+//    func addURLToWallabag () {
+//        WallabagApi.addArticle(UIPasteboard.general.urls!.first!, completion: { article in
+//            self.sync.insert(article)
+//        })
+//        addPasteboardURLItemView.isHidden = true
+//        for a in addPasteboardURLItemView.subviews {
+//            a.removeFromSuperview()
+//        }
+//    }
 
     func managedObjectContextObjectsDidChange(notification: NSNotification) {
         if notification.userInfo == nil { return }
@@ -308,6 +332,40 @@ final class ArticlesTableViewController: UITableViewController {
         }))
         alertController.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel, handler: nil))
 
+        fromController.present(alertController, animated: true)
+    }
+    
+    func addArticleFromClipboard(_ fromController: UIViewController) {
+        let urls = UIPasteboard.general.urls
+        if urls == nil {
+            return
+        }
+        if urls?.count == 0 {
+            return
+        }
+        if urls?.first == nil {
+            return
+        }
+        
+        let alertController = UIAlertController(title: "Add link from clipboard".localized, message: nil, preferredStyle: .alert)
+        alertController.addTextField(configurationHandler: { textField in
+            textField.placeholder = "Url".localized
+            textField.isEnabled = false
+            textField.text = urls?.first!.absoluteString
+        })
+        
+        alertController.addAction(UIAlertAction(title: "Add".localized, style: .default, handler: { _ in
+            if let textfield = alertController.textFields?.first?.text {
+                if let url = URL(string: textfield) {
+                    WallabagApi.addArticle(url) { article in
+                        self.sync.insert(article)
+                        self.tableView.reloadData()
+                    }
+                }
+            }
+        }))
+        alertController.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel, handler: nil))
+        
         fromController.present(alertController, animated: true)
     }
 }
